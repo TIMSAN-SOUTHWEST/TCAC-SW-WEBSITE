@@ -1,21 +1,36 @@
-// src/utils/connectDB
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-
 dotenv.config();
 
-const connectDB = async () => {
-  try {
-    console.log("Connecting to MongoDB...");
-    console.log("MongoDB URI:", process.env.MONGODB_URI); // Debug line
+const MONGODB_URI = process.env.MONGODB_URI;
 
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    console.log("MongoDB Connected");
-  } catch (error) {
-    console.error("Failed to Connect MongoDB:", error);
+if (!MONGODB_URI) {
+  throw new Error(
+    'Please define the MONGODB_URI environment variable inside .env'
+  );
+}
+
+// Global is used here to maintain a cached connection across hot reloads in development
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+const connectDB = async () => {
+  if (cached.conn) {
+    return cached.conn;
   }
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      bufferCommands: false
+    }).then((mongoose) => {
+      return mongoose;
+    });
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
 };
 
 export default connectDB;
