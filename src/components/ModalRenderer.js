@@ -129,7 +129,9 @@ const ModalRenderer = ({ post, onClose }) => {
         bg="white"
         borderRadius="lg"
         shadow="2xl"
-        maxH={size === 'fullscreen' ? '100vh' : '90vh'}
+        maxH="90vh"
+        maxW="90vw"
+        w="fit-content"
         overflow="hidden"
       >
         {showCloseButton && (
@@ -155,7 +157,7 @@ const ModalRenderer = ({ post, onClose }) => {
           </Text>
         </ModalHeader>
 
-        <ModalBody py={6}>
+        <ModalBody py={6} px={6} display="flex" justifyContent="center" alignItems="center">
           <VStack spacing={4} align="stretch">
             {/* Media content */}
             {image && (
@@ -163,8 +165,8 @@ const ModalRenderer = ({ post, onClose }) => {
                 <Image
                   src={image}
                   alt={post.name}
-                  maxH="400px"
-                  maxW="100%"
+                  maxH="80vh"
+                  maxW="80vw"
                   objectFit="contain"
                   borderRadius="md"
                 />
@@ -177,8 +179,10 @@ const ModalRenderer = ({ post, onClose }) => {
                   src={video}
                   controls
                   style={{
-                    maxHeight: '400px',
-                    maxWidth: '100%',
+                    maxHeight: '80vh',
+                    maxWidth: '80vw',
+                    width: 'auto',
+                    height: 'auto',
                     borderRadius: '8px'
                   }}
                 />
@@ -199,13 +203,6 @@ const ModalRenderer = ({ post, onClose }) => {
           </VStack>
         </ModalBody>
 
-        {showCloseButton && (
-          <ModalFooter borderTop="1px solid" borderColor="gray.200" pt={4}>
-            <Button colorScheme="blue" onClick={handleClose}>
-              Close
-            </Button>
-          </ModalFooter>
-        )}
       </ModalContent>
     </Modal>
   );

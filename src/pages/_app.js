@@ -4,14 +4,12 @@ import "@/styles/paymentslip.css";
 import { ChakraProvider } from "@chakra-ui/react";
 import theme from "../themes/theme";
 import { wrapper } from "../store";
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { setUser } from "../store/slices/auth/user/userAuthSlice";
-import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { Provider, useDispatch } from "react-redux";
 
-function App({ Component, pageProps }) {
+function InnerApp({ Component, pageProps }) {
   const dispatch = useDispatch();
-  const router = useRouter();
 
   useEffect(() => {
     // Check sessionStorage for user data on client-side
@@ -38,5 +36,15 @@ function App({ Component, pageProps }) {
   );
 }
 
-// Use the wrapper with the latest implementation
-export default wrapper.withRedux(App);
+function App({ Component, ...rest }) {
+  const { store, props } = wrapper.useWrappedStore(rest);
+  const { pageProps } = props;
+
+  return (
+    <Provider store={store}>
+      <InnerApp Component={Component} pageProps={pageProps} />
+    </Provider>
+  );
+}
+
+export default App;

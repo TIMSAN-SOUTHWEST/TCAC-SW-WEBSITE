@@ -52,7 +52,7 @@ const PaymentForm = ({
   const calculateAmount = (campType, userCategory, paymentType) => {
     if (userCategory === "Child") {
       // Children only get Camp Only option with 50% discount
-      return "3500";
+      return "4000";
     }
     
     switch (campType) {
@@ -76,7 +76,7 @@ const PaymentForm = ({
   // Calculate minimum amount based on camp type and user category
   const calculateMinimumAmount = (campType, userCategory, paymentType) => {
     if (userCategory === "Child") {
-      return 3500;
+      return 4000;
     }
     
     switch (campType) {
@@ -101,7 +101,7 @@ const PaymentForm = ({
   const getAvailableCampTypes = (userCategory) => {
     if (userCategory === "Child") {
       return [
-        { value: "Camp Only", label: "Camp Only - ₦3,500" }
+        { value: "Camp Only", label: "Camp Only - ₦4,000" }
       ];
     }
     

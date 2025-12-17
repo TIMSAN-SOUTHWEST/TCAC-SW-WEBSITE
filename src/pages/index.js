@@ -1,5 +1,8 @@
 import Head from "next/head";
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import connectDB from "../utils/connectDB";
+import Post from "../models/Post";
+import { sanitizePost } from "../utils/sanitizePost";
 import {
   Box,
   Spinner,
@@ -42,17 +45,23 @@ import Footer from "../components/landingPage/Footer";
 import ModalRenderer from "../components/ModalRenderer";
 import ImageLightboxModal from '../components/landingPage/ImageLightboxModal'
 
-export default function Home() {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export default function Home({
+  initialPosts = [],
+  initialTotal = 0,
+  initialPage = 1,
+  initialError = null
+}) {
+  const [posts, setPosts] = useState(initialPosts);
+  const [loading, setLoading] = useState(!initialPosts.length && !initialError);
+  const [error, setError] = useState(initialError);
   const [selectedImage, setSelectedImage] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [modalPosts, setModalPosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(5); // You can adjust this as needed
-  const [total, setTotal] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [modalPosts, setModalPosts] = useState(
+    initialPosts.filter(p => p.postType === "Popout/Modal" && p.isPublished)
+  );
+  const [page, setPage] = useState(initialPage);
+  const [limit] = useState(initialPosts.length || 1); // initial page size (SSR)
+  const [total, setTotal] = useState(initialTotal);
 
   // Utility function to convert YouTube URLs to embed URLs
   const getEmbedUrl = (url) => {
@@ -76,14 +85,39 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Initial fetch
-    fetchPosts(1, true);
+    // If we didn't get anything from SSR, fall back to client fetch
+    if (!initialPosts.length && !initialError) {
+      fetchPosts(1, true);
+    } else {
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-fetch remaining pages to avoid huge SSR payload but still load all posts
+  const autoFetchTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (autoFetchTriggeredRef.current) return;
+    if (posts.length >= total || total === 0) return;
+    autoFetchTriggeredRef.current = true;
+    const totalPages = Math.ceil(total / limit);
+    const fetchRemaining = async () => {
+      for (let p = 2; p <= totalPages; p++) {
+        await fetchPosts(p, false);
+      }
+    };
+    fetchRemaining().catch((err) => console.error("Auto fetch posts failed", err));
+  }, [posts.length, total, limit]);
+
+  useEffect(() => {
+    const modals = posts.filter(
+      (p) => p.postType === "Popout/Modal" && p.isPublished
+    );
+    setModalPosts(modals);
+  }, [posts]);
+
   const fetchPosts = async (pageToFetch, initial = false) => {
     if (initial) setLoading(true);
-    else setLoadingMore(true);
     try {
       const r = await fetch(`/api/posts/published?page=${pageToFetch}&limit=${limit}`);
       if (!r.ok) {
@@ -91,15 +125,16 @@ export default function Home() {
       }
       const j = await r.json();
       if (j.success) {
+        const sanitized = j.data.map(sanitizePost);
         if (initial) {
-          setPosts(j.data);
+          setPosts(sanitized);
         } else {
-          setPosts((prev) => [...prev, ...j.data]);
+          setPosts((prev) => [...prev, ...sanitized]);
         }
         setTotal(j.total);
         setPage(j.page);
         // Only show modal posts from loaded posts
-        const modals = (initial ? j.data : [...posts, ...j.data]).filter(p => p.postType === "Popout/Modal" && p.isPublished);
+        const modals = (initial ? sanitized : [...posts, ...sanitized]).filter(p => p.postType === "Popout/Modal" && p.isPublished);
         setModalPosts(modals);
       } else setError(j.message || "Failed to fetch posts");
     } catch (error) {
@@ -107,7 +142,6 @@ export default function Home() {
       setError("Failed to load posts");
     } finally {
       if (initial) setLoading(false);
-      else setLoadingMore(false);
     }
   };
 
@@ -144,6 +178,7 @@ export default function Home() {
                 controls
                 autoPlay
                 muted
+                preload="metadata"
                 style={{ width: "100%", height: "100%" }}
               />
             ) : post.content.videoUrl ? (
@@ -152,6 +187,7 @@ export default function Home() {
                 title={post.name}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                loading="lazy"
                 allowFullScreen
                 style={{ width: "100%", height: "100%" }}
               />
@@ -236,6 +272,8 @@ export default function Home() {
                   <Image 
                     src={img.url} 
                     alt={img.caption ?? `Gallery image ${i + 1}`}
+                    loading="lazy"
+                    decoding="async"
                     objectFit="cover"
                   />
                 </AspectRatio>
@@ -393,6 +431,8 @@ export default function Home() {
                         <Image
                           src={s.image}
                           alt={s.title}
+                          loading="lazy"
+                          decoding="async"
                           w="100%"
                           h={{ base: "200px", md: "220px" }}
                           objectFit="cover"
@@ -553,21 +593,6 @@ export default function Home() {
             </Box>
           )}
         </VStack>
-        {/* Load More Button */}
-        {posts.length < total && (
-          <Box textAlign="center" my={8}>
-            <Button
-              onClick={() => fetchPosts(page + 1)}
-              isLoading={loadingMore}
-              loadingText="Loading..."
-              disabled={loadingMore}
-              colorScheme="green"
-              size="lg"
-            >
-              Load More
-            </Button>
-          </Box>
-        )}
         <Footer />
         
         {/* Render modals */}
@@ -590,6 +615,8 @@ export default function Home() {
                 <Image
                   src={selectedImage.url}
                   alt={selectedImage.caption}
+                  loading="lazy"
+                  decoding="async"
                   borderRadius="md"
                   w="100%"
                 />
@@ -600,4 +627,52 @@ export default function Home() {
       </Box>
     </>
   );
+}
+
+export async function getServerSideProps() {
+  try {
+    await connectDB();
+    const page = 1;
+    const limit = 3; // keep SSR payload small
+    const skip = (page - 1) * limit;
+    const [posts, total] = await Promise.all([
+      Post.find({ isPublished: true })
+        .sort({ sortOrder: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("name postType isPublished sortOrder content createdAt updatedAt")
+        .lean(),
+      Post.countDocuments({ isPublished: true })
+    ]);
+
+    // Ensure plain JSON serializable objects
+    const serializedPosts = posts.map((p) => {
+      const sanitized = sanitizePost(p);
+      return {
+        ...sanitized,
+        _id: p._id.toString(),
+        createdAt: p.createdAt?.toISOString?.() ?? null,
+        updatedAt: p.updatedAt?.toISOString?.() ?? null
+      };
+    });
+
+    return {
+      props: {
+        initialPosts: serializedPosts,
+        initialTotal: total,
+        initialPage: page,
+        initialError: null
+      }
+    };
+  } catch (error) {
+    console.error("SSR posts load failed", error);
+    return {
+      props: {
+        initialPosts: [],
+        initialTotal: 0,
+        initialPage: 1,
+        initialError: "Failed to load posts"
+      }
+    };
+  }
 }
