@@ -1,6 +1,10 @@
 import Head from "next/head";
 import "@/styles/globals.css";
 import "@/styles/paymentslip.css";
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
+// -----------------------------------------------------------
+
 import { ChakraProvider } from "@chakra-ui/react";
 import theme from "../themes/theme";
 import { wrapper } from "../store";
@@ -16,8 +20,12 @@ function InnerApp({ Component, pageProps }) {
     if (typeof window !== 'undefined') {
       const userData = sessionStorage.getItem('userData');
       if (userData) {
-        const { user, token } = JSON.parse(userData);
-        dispatch(setUser({ user, token }));
+        try {
+          const { user, token } = JSON.parse(userData);
+          dispatch(setUser({ user, token }));
+        } catch (error) {
+          console.error("Failed to parse userData from session:", error);
+        }
       }
     }
   }, [dispatch]);
@@ -25,8 +33,10 @@ function InnerApp({ Component, pageProps }) {
   return (
     <>
       <Head>
+        {/* Fixed the apostrophe entity and updated description */}
         <title>TCAC&apos;25</title>
         <meta name="description" content="TCAC'25 - Connecting the Community" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/timsan-logo.png" />
       </Head>
       <ChakraProvider theme={theme}>

@@ -105,7 +105,7 @@ const ModalRenderer = ({ post, onClose }) => {
       default:
         return 'md';
     }
-  };
+  }; 
 
   // Don't render if modal shouldn't show
   if (!shouldShow) return null;

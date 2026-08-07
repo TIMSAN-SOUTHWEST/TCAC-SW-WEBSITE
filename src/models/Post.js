@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const PostSchema = new mongoose.Schema({
   name: { 
@@ -39,4 +39,14 @@ const PostSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-export default mongoose.models.Post || mongoose.model("Post", PostSchema); 
+let Post;
+
+try {
+  // Attempt to use the existing model if it's already compiled
+  Post = mongoose.model('Post');
+} catch (e) {
+  // If not compiled, compile the model
+  Post = mongoose.model('Post', PostSchema);
+}
+
+export default Post;

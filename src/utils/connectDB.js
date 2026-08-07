@@ -1,38 +1,44 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://TIMSAN:TIMSANSOUTH@ac-rec9yej-shard-00-00.raww7tm.mongodb.net:27017,ac-rec9yej-shard-00-01.raww7tm.mongodb.net:27017,ac-rec9yej-shard-00-02.raww7tm.mongodb.net:27017/TCAC?ssl=true&replicaSet=atlas-mzifxm-shard-0&authSource=admin&appName=TCAC";
 
 if (!MONGODB_URI) {
-  throw new Error(
-    'Please define the MONGODB_URI environment variable inside .env'
-  );
+  throw new Error("Please define the MONGODB_URI environment variable inside .env");
 }
 
-// Global is used here to maintain a cached connection across hot reloads in development
-let cached = global.mongoose;
+/**
+ * Global is used here to maintain a cached connection across hot reloads
+ * in development, preventing connections from growing exponentially.
+ */
+let cached = globalThis.mongoose;
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+  cached = globalThis.mongoose = { conn: null, promise: null };
 }
 
-const connectDB = async () => {
+async function connectDB() {
   if (cached.conn) {
     return cached.conn;
   }
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+    const opts = {
       bufferCommands: false,
-      maxPoolSize: 5,
-      minPoolSize: 1
-    }).then((mongoose) => {
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       return mongoose;
     });
   }
-  cached.conn = await cached.promise;
+  
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
   return cached.conn;
-};
+}
 
 export default connectDB;

@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -13,9 +14,9 @@ import {
   Box,
   VStack,
   HStack,
+  Button,
 } from "@chakra-ui/react";
 import { CopyIcon } from "@chakra-ui/icons";
-import { useState } from "react";
 
 const BankDetailsModal = ({ isOpen, onClose }) => {
   const [copiedAccountName, setCopiedAccountName] = useState(false);
@@ -35,7 +36,7 @@ const BankDetailsModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Bank Account Details</ModalHeader>
@@ -47,7 +48,10 @@ const BankDetailsModal = ({ isOpen, onClose }) => {
                 <Text fontWeight="bold">Account Name:</Text>
                 <Text>{details.accountName}</Text>
               </HStack>
-              <Tooltip label={copiedAccountName ? "Copied!" : "Copy"} aria-label="Copy account name">
+              <Tooltip
+                label={copiedAccountName ? "Copied!" : "Copy"}
+                aria-label="Copy account name"
+              >
                 <IconButton
                   icon={<CopyIcon />}
                   onClick={() => handleCopy(details.accountName, setCopiedAccountName)}
@@ -63,7 +67,10 @@ const BankDetailsModal = ({ isOpen, onClose }) => {
                 <Text fontWeight="bold">Account Number:</Text>
                 <Text>{details.accountNumber}</Text>
               </HStack>
-              <Tooltip label={copiedAccountNumber ? "Copied!" : "Copy"} aria-label="Copy account number">
+              <Tooltip
+                label={copiedAccountNumber ? "Copied!" : "Copy"}
+                aria-label="Copy account number"
+              >
                 <IconButton
                   icon={<CopyIcon />}
                   onClick={() => handleCopy(details.accountNumber, setCopiedAccountNumber)}
@@ -79,7 +86,10 @@ const BankDetailsModal = ({ isOpen, onClose }) => {
                 <Text fontWeight="bold">Bank:</Text>
                 <Text>{details.bankName}</Text>
               </HStack>
-              <Tooltip label={copiedBankName ? "Copied!" : "Copy"} aria-label="Copy bank name">
+              <Tooltip
+                label={copiedBankName ? "Copied!" : "Copy"}
+                aria-label="Copy bank name"
+              >
                 <IconButton
                   icon={<CopyIcon />}
                   onClick={() => handleCopy(details.bankName, setCopiedBankName)}
@@ -91,7 +101,11 @@ const BankDetailsModal = ({ isOpen, onClose }) => {
             </HStack>
           </VStack>
         </ModalBody>
-        <ModalFooter />
+        <ModalFooter>
+          <Button colorScheme="green" onClick={onClose}>
+            Close
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );
