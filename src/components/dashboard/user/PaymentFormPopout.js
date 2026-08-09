@@ -5,7 +5,33 @@ import { MdAttachFile } from "react-icons/md";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import { InfoOutlineIcon } from "@chakra-ui/icons";
 
-const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNext, onPrevious, prevFormValues, userId, refreshUserData, balance = 35000, userCampType = "Camp + Conference", userCategory = "Adult" }) => {
+const PRICES = {
+  standard: {
+    "Camp Only": { Student: 7000, Alumnus: 10000, Child: 4000 },
+    "Conference Only": { Student: 35000, Alumnus: 35000 },
+    "Camp + Conference": { Student: 42000, Alumnus: 50000 },
+  },
+  "early-bird": {
+    "Camp Only": { Student: 6000, Alumnus: 8000, Child: 3000 },
+    "Conference Only": { Student: 30000, Alumnus: 30000 },
+    "Camp + Conference": { Student: 36000, Alumnus: 44000 },
+  },
+};
+
+const getPrice = (userCategory, campType, pricingType) => {
+  const category =
+    userCategory === "Child"
+      ? "Child"
+      : userCategory === "Alumnus"
+      ? "Alumnus"
+      : "Student";
+  const tier = pricingType === "early-bird" ? "early-bird" : "standard";
+  return PRICES[tier]?.[campType]?.[category] ?? 0;
+};
+
+const formatNaira = (n) => n.toLocaleString();
+
+const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNext, onPrevious, prevFormValues, userId, refreshUserData, balance = 35000, userCampType = "Camp + Conference", userCategory = "Adult", pricingType = "standard" }) => {
   // For balance payments, use the user's original camp type
   const getBalanceCampType = (userCampType) => {
     // For balance payments, we should use the user's original camp type
@@ -84,7 +110,7 @@ const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNe
       const result = await response.json();
       const { url } = result;
       setBlobDetails({ url });
-      const paymentRes = await fetch("/api/paymentformpopout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, paymentType: formValues.paymentType, campType: formValues.campType, amount: formValues.amount, transactionDate: formValues.transactionDate, receiptUrl: url, paymentNarration: formValues.paymentNarration, status: "pending" }) });
+      const paymentRes = await fetch("/api/paymentformpopout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, paymentType: formValues.paymentType, pricingType: pricingType === "early-bird" ? "early-bird" : "standard", campType: formValues.campType, amount: formValues.amount, transactionDate: formValues.transactionDate, receiptUrl: url, paymentNarration: formValues.paymentNarration, status: "pending" }) });
       if (!paymentRes.ok) {
         setLoading(false);
         throw new Error("Payment submission failed");
@@ -94,7 +120,7 @@ const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNe
       setFormValues({ 
         paymentType: "Full Payment", 
         campType: getBalanceCampType(userCampType), 
-        amount: balance?.toString() || "35000", 
+        amount: balance?.toString() ||"35000",
         transactionDate: "", 
         receipt: "", 
         paymentNarration: "" 
@@ -148,61 +174,50 @@ const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNe
 
   // Get available camp types for balance payments
   const getAvailableCampTypes = () => {
+    const userPricingType = pricingType === "early-bird" ? "early-bird" : "standard";
+
     if (userCategory === "Child") {
       return [
-        { value: "Camp Only", label: "Camp Only - ₦3,500" }
+        { value: "Camp Only", label: `Camp Only - ₦${formatNaira(getPrice(userCategory, "Camp Only", userPricingType))}` },
       ];
     }
-    
+
     // For balance payments, show the user's original camp type
     // This allows them to pay the remaining balance for their chosen package
     if (userCampType === "Camp Only") {
       return [
-        { value: "Camp Only", label: "Camp Only - ₦7,000" }
+        { value: "Camp Only", label: `Camp Only - ₦${formatNaira(getPrice(userCategory, "Camp Only", userPricingType))}` },
       ];
     } else if (userCampType === "Conference Only") {
       return [
-        { value: "Conference Only", label: "Conference Only - ₦35,000" }
+        { value: "Conference Only", label: `Conference Only - ₦${formatNaira(getPrice(userCategory, "Conference Only", userPricingType))}` },
       ];
     } else if (userCampType === "Camp + Conference") {
       return [
-        { value: "Camp + Conference", label: "Camp + Conference - ₦42,000" }
+        { value: "Camp + Conference", label: `Camp + Conference - ₦${formatNaira(getPrice(userCategory, "Camp + Conference", userPricingType))}` },
       ];
     }
-    
+
     // Fallback options
     return [
-      { value: "Camp Only", label: "Camp Only - ₦7,000" },
-      { value: "Conference Only", label: "Conference Only - ₦35,000" },
-      { value: "Camp + Conference", label: "Camp + Conference - ₦42,000" }
+      { value: "Camp Only", label: `Camp Only - ₦${formatNaira(getPrice(userCategory, "Camp Only", userPricingType))}` },
+      { value: "Conference Only", label: `Conference Only - ₦${formatNaira(getPrice(userCategory, "Conference Only", userPricingType))}` },
+      { value: "Camp + Conference", label: `Camp + Conference - ₦${formatNaira(getPrice(userCategory, "Camp + Conference", userPricingType))}` },
     ];
   };
 
   // Calculate available amounts for installmental payments
   const getAvailableAmounts = (campType) => {
-    if (campType === "Conference Only") {
-      const allAmounts = [
-        { value: "5000", label: "₦5,000" },
-        { value: "10000", label: "₦10,000" },
-        { value: "20000", label: "₦20,000" },
-        { value: "35000", label: "₦35,000 (Full Payment)" }
-      ];
-      
-      // Filter out amounts that are greater than the balance
-      return allAmounts.filter(amount => parseInt(amount.value) <= balance);
-    } else if (campType === "Camp + Conference") {
-      const allAmounts = [
-        { value: "5000", label: "₦5,000" },
-        { value: "10000", label: "₦10,000" },
-        { value: "20000", label: "₦20,000" },
-        { value: "35000", label: "₦35,000" },
-        { value: "42000", label: "₦42,000 (Full Payment)" }
-      ];
-      
-      // Filter out amounts that are greater than the balance
-      return allAmounts.filter(amount => parseInt(amount.value) <= balance);
-    }
-    return [];
+    const allAmounts = [
+      { value: "5000", label: "₦5,000" },
+      { value: "10000", label: "₦10,000" },
+      { value: "20000", label: "₦20,000" },
+      { value: "35000", label: "₦35,000" },
+      { value: "42000", label: "₦42,000" },
+    ];
+
+    // Filter out amounts that are greater than the balance
+    return allAmounts.filter(amount => parseInt(amount.value) <= balance);
   };
 
   return (
@@ -281,7 +296,7 @@ const PaymentFormPopout = ({ isOpen, onClose, role, values, onValuesChange, onNe
                     <IconButton
                       icon={<FaCopy />}
                       size="sm"
-                      aria-label="Copy Bank"
+                      aria-label="Copy Bank"    
                     />
                   </CopyToClipboard>
                 </Box>

@@ -49,7 +49,7 @@ const UserDashboard = ({ accountData: initialData }) => {
       try {
         const html2pdf = (await import('html2pdf.js')).default;
         const userName = `${accountData?.firstName || ''} ${accountData?.lastName || ''}`.trim();
-        const filename = userName ? `${userName}-TCAC-2025.pdf` : 'TCAC-2025-PaymentSlip.pdf';
+        const filename = userName ? `${userName}-TCAC-2026.pdf`:'TCAC-2026-PaymentSlip.pdf';
 
         const images = slipRef.current.querySelectorAll('img');
         const imagePromises = Array.from(images).map(img => {
@@ -104,7 +104,7 @@ const UserDashboard = ({ accountData: initialData }) => {
     const res = await fetch(`/api/paymenthistory?userId=${userId}`);
     if (!res.ok) {
       setPaymentHistory([]);
-      return;
+      return; 
     }
     const data = await res.json();
     setPaymentHistory(Array.isArray(data) ? data : []);
@@ -169,7 +169,7 @@ const UserDashboard = ({ accountData: initialData }) => {
     <Box className={styles.container}>
       <Box className={styles.welcomeSection}>
         <Heading className={styles.welcomeHeadingOneLine}>
-          Welcome back to TCAC &apos;25,{' '}
+          Welcome back to TCAC &apos;26,{''}
           <Box as="span" className={styles.welcomeName}>
             {accountData?.firstName || accountData?.userID}!
           </Box>
@@ -458,6 +458,7 @@ const UserDashboard = ({ accountData: initialData }) => {
         balance={accountData?.balance}
         userCampType={accountData?.campType}
         userCategory={accountData?.userCategory}
+        pricingType={accountData?.pricingType}
         refreshUserData={refreshUserData}
       />
     <Modal isOpen={showSlip} onClose={() => setShowSlip(false)} size="xl">

@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import { Box, Heading, Text, Divider, Flex, Image, VStack, HStack } from "@chakra-ui/react";
+import { Box, Heading, Text, Divider, Flex, Image, VStack, HStack, Badge } from "@chakra-ui/react";
 
 const PaymentSlip = forwardRef(({ user, payments, slipCode }, ref) => {
   const totalApprovedPaid = payments
@@ -84,7 +84,7 @@ const PaymentSlip = forwardRef(({ user, payments, slipCode }, ref) => {
             <Text><b>Gender:</b> {user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "-"}</Text>
             <Text><b>Institution (Local Zawiyyah):</b> {user?.institution || user?.otherInstitution || "-"}</Text>
             <Text><b>State Affiliated:</b> {user?.state || user?.otherState || "-"}</Text>
-            <Text><b>Camp Type:</b> {user?.campType}</Text>
+            <Text><b>Camp Type:</b> {user?.campType} {user?.pricingType === "early-bird" && <Badge ml={1} colorScheme="green" variant="solid">Early Bird</Badge>}</Text>
             <Text><b>Phone Number:</b> {user?.phoneNumber}</Text>
             <Text><b>Email:</b> {user?.email}</Text>
           </VStack>

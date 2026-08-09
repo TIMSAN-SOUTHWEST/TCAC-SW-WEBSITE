@@ -19,6 +19,32 @@ import { FaCopy } from "react-icons/fa";
 import { MdAttachFile } from "react-icons/md";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 
+const PRICES = {
+  standard: {
+    "Camp Only": { Student: 7000, Alumnus: 10000, Child: 4000 },
+    "Conference Only": { Student: 35000, Alumnus: 35000 },
+    "Camp + Conference": { Student: 42000, Alumnus: 50000 },
+  },
+  "early-bird": {
+    "Camp Only": { Student: 6000, Alumnus: 8000, Child: 3000 },
+    "Conference Only": { Student: 30000, Alumnus: 30000 },
+    "Camp + Conference": { Student: 36000, Alumnus: 44000 },
+  },
+};
+
+const getPrice = (userCategory, campType, pricingType) => {
+  const category =
+    userCategory === "Child"
+      ? "Child"
+      : userCategory === "Alumnus"
+      ? "Alumnus"
+      : "Student";
+  const tier = pricingType === "early-bird" ? "early-bird" : "standard";
+  return PRICES[tier]?.[campType]?.[category] ?? 0;
+};
+
+const formatNaira = (n) => n.toLocaleString();
+
 const PaymentForm = ({
   role,
   values,
@@ -48,67 +74,50 @@ const PaymentForm = ({
     bank: "UBA",
   };
 
-  // Calculate amount based on camp type and user category
+  // Calculate amount based on camp type, user category, and payment mode
   const calculateAmount = (campType, userCategory, paymentType) => {
-    if (userCategory === "Child") {
-      // Children only get Camp Only option with 50% discount
-      return "4000";
+    if (paymentType === "Installmental") {
+      return ""; // User will select from dropdown
     }
-    
-    switch (campType) {
-      case "Camp Only":
-        return "7000"; // Fixed amount
-      case "Conference Only":
-        if (paymentType === "Installmental") {
-          return ""; // User will select from dropdown
-        }
-        return "35000"; // Full payment
-      case "Camp + Conference":
-        if (paymentType === "Installmental") {
-          return ""; // User will select from dropdown
-        }
-        return "42000"; // Full payment for Camp + Conference (₦7,000 + ₦35,000)
-      default:
-        return "7000";
-    }
+    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+    return String(getPrice(userCategory, campType, pricingType));
   };
 
-  // Calculate minimum amount based on camp type and user category
+  // Calculate minimum amount based on camp type, user category, and payment mode
   const calculateMinimumAmount = (campType, userCategory, paymentType) => {
-    if (userCategory === "Child") {
-      return 4000;
+    if (paymentType === "Installmental") {
+      return 5000; // Minimum installmental
     }
-    
-    switch (campType) {
-      case "Camp Only":
-        return 7000; // Fixed amount
-      case "Conference Only":
-        if (paymentType === "Installmental") {
-          return 5000; // Minimum installmental
-        }
-        return 35000; // Full payment
-      case "Camp + Conference":
-        if (paymentType === "Installmental") {
-          return 5000; // Minimum installmental
-        }
-        return 42000; // Full payment for Camp + Conference (₦7,000 + ₦35,000)
-      default:
-        return 7000;
-    }
+    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+    return getPrice(userCategory, campType, pricingType);
   };
 
-  // Get available camp types based on user category
-  const getAvailableCampTypes = (userCategory) => {
+  // Get available camp types based on user category and payment mode
+  const getAvailableCampTypes = (userCategory, paymentType) => {
+    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+
     if (userCategory === "Child") {
       return [
-        { value: "Camp Only", label: "Camp Only - ₦4,000" }
+        {
+          value: "Camp Only",
+          label: `Camp Only - ₦${formatNaira(getPrice(userCategory, "Camp Only", pricingType))}`,
+        },
       ];
     }
-    
+
     return [
-      { value: "Camp Only", label: "Camp Only - ₦7,000" },
-      { value: "Conference Only", label: "Conference Only - ₦35,000" },
-      { value: "Camp + Conference", label: "Camp + Conference - ₦42,000" }
+      {
+        value: "Camp Only",
+        label: `Camp Only - ₦${formatNaira(getPrice(userCategory, "Camp Only", pricingType))}`,
+      },
+      {
+        value: "Conference Only",
+        label: `Conference Only - ₦${formatNaira(getPrice(userCategory, "Conference Only", pricingType))}`,
+      },
+      {
+        value: "Camp + Conference",
+        label: `Camp + Conference - ₦${formatNaira(getPrice(userCategory, "Camp + Conference", pricingType))}`,
+      },
     ];
   };
 
@@ -220,6 +229,7 @@ const PaymentForm = ({
         ...prevFormValues,
         ...formValues,
         receiptUrl: url,
+        pricingType: formValues.paymentType === "Early Bird" ? "early-bird" : "standard",
       };
 
       onValuesChange(mergedValues);
@@ -248,7 +258,7 @@ const PaymentForm = ({
     inputFileRef.current.click();
   };
 
-  const availableCampTypes = getAvailableCampTypes(prevFormValues?.userCategory);
+  const availableCampTypes = getAvailableCampTypes(prevFormValues?.userCategory, formValues.paymentType);
 
   return (
     <form onSubmit={handleFormSubmit}>
@@ -336,6 +346,9 @@ const PaymentForm = ({
             placeholder="Select payment type"
           >
             <option value="Full Payment">Full Payment</option>
+            {prevFormValues?.userCategory !== "Non-TIMSANITE" && (
+              <option value="Early Bird">Early Bird</option>
+            )}
             {(formValues.campType === "Conference Only" || formValues.campType === "Camp + Conference") && (
               <option value="Installmental">Installmental</option>
             )}

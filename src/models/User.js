@@ -54,6 +54,11 @@ const userSchema = new mongoose.Schema(
 
     // Payment-related fields
     paymentType: { type: String },
+    pricingType: {
+      type: String,
+      enum: ["standard", "early-bird"],
+      default: "standard",
+    },
     campType: { 
       type: String, 
       enum: ["Camp Only", "Conference Only", "Camp + Conference"],

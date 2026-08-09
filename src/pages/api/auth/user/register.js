@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   await connectDB();
 
   if (req.method === "POST") {
-    const { role, email, password, userCategory, campType, amount } = req.body;
+    const { role, email, password, userCategory, campType, amount, pricingType } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
@@ -35,38 +35,22 @@ export default async function handler(req, res) {
       const hashedPassword = await bcryptjs.hash(password, 12);
       const userID = await generateUserID(userCategory);
 
-      // Calculate balance based on camp type and amount paid
-      let balance = 0;
+      // Calculate balance based on camp type, category, and pricing tier
       const amountPaid = parseInt(amount);
-      
-      if (userCategory === "Child") {
-        // Children only get Camp Only with 50% discount
-        const campPrice = 3500; // 50% of ₦7,000
-        balance = Math.max(0, campPrice - amountPaid);
-      } else {
-        switch (campType) {
-          case "Camp Only":
-            const campPrice = 7000;
-            balance = Math.max(0, campPrice - amountPaid);
-            break;
-          case "Conference Only":
-            const conferencePrice = 35000;
-            balance = Math.max(0, conferencePrice - amountPaid);
-            break;
-          case "Camp + Conference":
-            const totalPrice = 42000; // ₦7,000 + ₦35,000
-            balance = Math.max(0, totalPrice - amountPaid);
-            break;
-          default:
-            balance = 0;
-        }
-      }
+      const isNonTimsanite =
+        (userCategory || "").toLowerCase() === "non-timsanite";
+      const tier =
+        !isNonTimsanite && pricingType === "early-bird"
+          ? "early-bird"
+          : "standard";
+      const balance = Math.max(0, getCampPrice(userCategory, campType, tier) - amountPaid);
 
       const newUser = new User({
         ...req.body,
         password: hashedPassword,
         userID,
         registrationStatus: "pending",
+        pricingType: tier,
         balance, 
       });
 
@@ -78,6 +62,7 @@ export default async function handler(req, res) {
         const registrationPayment = new Payment({
           userId: newUser._id,
           paymentType: req.body.paymentType || "Full Payment",
+          pricingType: tier,
           campType: campType,
           amount: parseInt(amount),
           transactionDate: new Date(),
@@ -149,4 +134,26 @@ async function generateUserID(userCategory) {
   }
 
   return `TCAC'25-${categoryID}-${participantID}`;
+}
+
+function getCampPrice(userCategory, campType, tier) {
+  const category = (userCategory || "").toLowerCase();
+  const isEarlyBird = tier === "early-bird" && category !== "non-timsanite";
+  const studentPrice = isEarlyBird
+    ? { "Camp Only": 6000, "Conference Only": 30000, "Camp + Conference": 36000 }
+    : { "Camp Only": 7000, "Conference Only": 35000, "Camp + Conference": 42000 };
+
+  if (category === "child") {
+    return isEarlyBird ? 3000 : 4000;
+  }
+
+  if (category === "alumnus") {
+    const prices = isEarlyBird
+      ? { "Camp Only": 8000, "Conference Only": 30000, "Camp + Conference": 44000 }
+      : { "Camp Only": 10000, "Conference Only": 35000, "Camp + Conference": 50000 };
+    return prices[campType] ?? studentPrice[campType] ?? 0;
+  }
+
+  // Student, Non-TIMSANITE (no early bird), and any other category use standard prices
+  return studentPrice[campType] ?? 0;
 }

@@ -8,6 +8,7 @@ export default async function handler(req, res) {
     const {
       userId,
       paymentType,
+      pricingType,
       campType,
       amount,
       transactionDate,
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
     const payment = await Payment.create({
       userId,
       paymentType,
+      pricingType: pricingType === "early-bird" ? "early-bird" : "standard",
       campType,
       amount: numericAmount,
       transactionDate: txDate,

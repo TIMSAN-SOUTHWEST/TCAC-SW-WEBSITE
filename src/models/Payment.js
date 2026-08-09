@@ -4,6 +4,11 @@ const PaymentSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     paymentType: { type: String, required: true },
+    pricingType: {
+      type: String,
+      enum: ["standard", "early-bird"],
+      default: "standard",
+    },
     campType: { type: String, required: true },
     amount: { type: Number, required: true },
     transactionDate: { type: Date, required: true },
