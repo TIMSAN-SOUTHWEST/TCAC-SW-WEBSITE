@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+ * Note: Body styles are managed by Chakra UI theme (themes/theme.js).
+ * Only use Tailwind for utility classes that don't conflict with Chakra.
+ */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

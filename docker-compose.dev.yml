@@ -1,0 +1,31 @@
+services:
+  # =====================
+  # PostgreSQL Database (for local dev)
+  # =====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: tcac-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tcac_user
+      POSTGRES_PASSWORD: tcac_password
+      POSTGRES_DB: tcac_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcac_user -d tcac_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tcac-dev-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  tcac-dev-network:
+    driver: bridge

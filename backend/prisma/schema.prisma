@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RegistrationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum Gender {
+  male
+  female
+}
+
+enum UserCategory {
+  Student
+  Alumnus
+  Child
+  NonTIMSANITE @map("Non-TIMSANITE")
+}
+
+enum CampType {
+  CampOnly       @map("Camp Only")
+  ConferenceOnly @map("Conference Only")
+  CampConference @map("Camp + Conference")
+}
+
+enum PricingType {
+  standard
+  earlyBird @map("early-bird")
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PaymentRequestStatus {
+  pending
+  approved
+  rejected
+  revoked
+}
+
+enum AdminFunction {
+  admin
+  reg_team_lead
+  health_team_lead
+}
+
+enum PostType {
+  HeaderAndParagraph @map("Header and Paragraph")
+  VideoEmbed         @map("Video Embed")
+  PopoutModal        @map("Popout/Modal")
+  Gallery
+  Banner
+  Slider
+}
+
+enum NotificationType {
+  info
+  warning
+  success
+  error
+}
+
+model User {
+  id                    String                @id @default(uuid())
+  firstName             String
+  lastName              String
+  email                 String                @unique
+  phoneNumber           String
+  password              String
+  gender                Gender
+  profilePicture        String
+  role                  String                @default("user")
+  userCategory          UserCategory          @default(Student)
+  registrationStatus    RegistrationStatus    @default(pending)
+  userID                String?               @unique
+  institution           String?
+  otherInstitution      String?
+  graduationYear        Int?
+  state                 String?
+  otherState            String?
+  guardianName          String?
+  guardianPhone         String?
+  guardianAddress       String?
+  nextOfKinName         String?
+  nextOfKinPhone        String?
+  nextOfKinAddress      String?
+  medicalCondition      Boolean               @default(false)
+  conditionDetails      String?
+  paymentType           String?
+  pricingType           PricingType           @default(standard)
+  campType              CampType              @default(CampOnly)
+  amount                Float?
+  receiptUrl            String?
+  paymentNarration      String?
+  balance               Float                 @default(35000)
+  paymentAccessGranted  Boolean               @default(false)
+  paymentRequestMessage String?
+  paymentRequestDate    DateTime?
+  paymentRequestStatus  PaymentRequestStatus  @default(pending)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  payments              Payment[]
+  slip                  Slip?
+
+  @@map("users")
+}
+
+model Admin {
+  id                 String             @id @default(uuid())
+  firstName          String
+  lastName           String
+  email              String             @unique
+  phoneNumber        String
+  password           String
+  role               String             @default("admin")
+  adminFunction      AdminFunction      @default(admin)
+  registrationStatus RegistrationStatus @default(pending)
+  adminID            String?            @unique
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("admins")
+}
+
+model SuperAdmin {
+  id            String   @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  phoneNumber   String
+  password      String
+  role          String   @default("super_admin")
+  superAdminID  String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("super_admins")
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String
+  paymentType      String
+  pricingType      PricingType   @default(standard)
+  campType         String
+  amount           Float
+  transactionDate  DateTime
+  receiptUrl       String
+  paymentNarration String?
+  status           PaymentStatus @default(pending)
+  adminComment     String        @default("")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  name        String
+  postType    PostType
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  content     Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("posts")
+}
+
+model Activity {
+  id          String  @id @default(uuid())
+  name        String
+  day         String
+  startTime   String
+  endTime     String
+  facilitator String
+  description String?
+
+  @@map("activities")
+}
+
+model Day {
+  id          String @id @default(uuid())
+  name        String
+  description String @default("")
+
+  @@map("days")
+}
+
+model Meal {
+  id          String  @id @default(uuid())
+  name        String
+  type        String
+  day         String
+  startTime   String
+  endTime     String
+  status      Int     @default(0)
+  description String?
+
+  @@map("meals")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  title     String
+  message   String
+  type      NotificationType @default(info)
+  isActive  Boolean          @default(true)
+  createdBy String           @default("admin")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("notifications")
+}
+
+model Slip {
+  id       String   @id @default(uuid())
+  userId   String   @unique
+  slipCode String   @unique
+  date     DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("slips")
+}
+
+model Settings {
+  id                     String   @id @default(uuid())
+  portalRegistrationOpen Boolean  @default(true)
+  registrationMessage    String   @default("Portal Has Been Closed For Registration")
+  paymentDeadline        DateTime?
+  paymentPortalOpen      Boolean  @default(true)
+  paymentClosedMessage   String   @default("Payment portal has been closed. Please contact administrator for assistance.")
+  updatedBy              String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model ResetCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@map("reset_codes")
+}

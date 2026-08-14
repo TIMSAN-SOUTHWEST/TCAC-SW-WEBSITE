@@ -1,0 +1,81 @@
+services:
+  # =====================
+  # PostgreSQL Database
+  # =====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: tcac-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tcac_user
+      POSTGRES_PASSWORD: tcac_password
+      POSTGRES_DB: tcac_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcac_user -d tcac_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tcac-network
+
+  # =====================
+  # NestJS Backend
+  # =====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tcac-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://tcac_user:tcac_password@postgres:5432/tcac_db?schema=public
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-28cd870cc473bd9f13235afcc8161c261b7403d710726eb93d0bb44f220a154eea8ab2d5874c702366661444f66774f0f75a5ebe7632b7103a604c0fd5a715c4}
+      PORT: 4000
+      BACKEND_URL: http://backend:4000
+      FRONTEND_URL: http://frontend:3000
+      EMAIL_USER: ${EMAIL_USER:-timsansouthwestzone2025@gmail.com}
+      EMAIL_PASS: ${EMAIL_PASS:-jiibomsigimlpein}
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - tcac-network
+
+  # =====================
+  # Next.js Frontend
+  # =====================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    container_name: tcac-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - tcac-network
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  tcac-network:
+    driver: bridge
