@@ -61,6 +61,15 @@ npm install
 
 ## Daily Development
 
+### Verify your database is running
+```powershell
+# To verify it's running:
+Get-Service postgresql*
+
+# If it ever shows "Stopped", start it with (Admin PowerShell):
+Start-Service postgresql-x64-18
+```
+
 ### Start Backend (Terminal 1)
 
 ```powershell
@@ -196,11 +205,17 @@ cd /mnt/c/Users/DELL/Desktop/Projects/web-app/TCAC-SW-WEBSITE
 # Builds Docker images for frontend and backend, then starts all 3 containers (postgres + backend + frontend)
 docker compose up --build -d
 
+#After the first docker compose up --build -d, you only need to start the containers with:
+docker compose up -d
+
 # Runs database migrations inside the backend container (creates tables)
 docker compose exec backend npx prisma migrate deploy
 
 # Streams live logs from all containers (Ctrl+C to stop watching)
 docker compose logs -f
+
+#Restart containers
+docker compose restart
 
 # Stops all containers but keeps the data volumes
 docker compose down

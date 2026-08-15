@@ -10,7 +10,7 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -34,11 +34,19 @@ RUN addgroup --system --gid 1001 nestjs && \
 
 # Copy package files and install production deps only
 COPY package.json package-lock.json* ./
-COPY prisma ./prisma/
 
-RUN npm ci --only=production && \
-    npx prisma generate && \
+RUN npm ci --omit=dev --legacy-peer-deps && \
     npm cache clean --force
+
+# Copy Prisma generated client from builder (avoids re-downloading prisma)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+
+# Copy prisma schema and migrations (needed for migrate deploy)
+COPY --from=builder /app/prisma ./prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
@@ -50,11 +58,11 @@ RUN mkdir -p uploads && chown nestjs:nestjs uploads
 USER nestjs
 
 # Expose port
-EXPOSE 4000
+EXPOSE 4500
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/settings/check-registration || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4500/api || exit 1
 
-# Start application
-CMD ["node", "dist/main"]
+# Start application (run migrations then start)
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node dist/main"]
