@@ -1,36 +1,58 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 @Injectable()
 export class UploadService {
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) {
+    cloudinary.config({
+      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+    });
+  }
 
-  async uploadFile(file: Express.Multer.File) {
+  async uploadFile(file: Express.Multer.File): Promise<{
+    url: string;
+    secureUrl: string;
+    publicId: string;
+    size: number;
+  }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
-    // For production with cloud storage (like Vercel Blob, S3, etc.)
-    // you'd integrate here. For now, save locally.
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // Determine folder based on file type
+    const isImage = file.mimetype.startsWith('image/');
+    const folder = isImage ? 'tcac-2026/images' : 'tcac-2026/documents';
+
+    try {
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder,
+              resource_type: 'auto',
+              transformation: isImage
+                ? [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto:good' }]
+                : undefined,
+            },
+            (error, result) => {
+              if (error || !result) reject(error || new Error('Upload failed'));
+              else resolve(result);
+            },
+          )
+          .end(file.buffer);
+      });
+
+      return {
+        url: result.secure_url,
+        secureUrl: result.secure_url,
+        publicId: result.public_id,
+        size: result.bytes,
+      };
+    } catch {
+      throw new BadRequestException('Failed to upload file. Please try again.');
     }
-
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}${ext}`;
-    const filePath = path.join(uploadsDir, uniqueName);
-
-    fs.writeFileSync(filePath, file.buffer);
-
-    const baseUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:4000';
-
-    return {
-      url: `${baseUrl}/uploads/${uniqueName}`,
-      pathname: uniqueName,
-      size: file.size,
-    };
   }
 }

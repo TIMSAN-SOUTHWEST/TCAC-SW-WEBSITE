@@ -208,9 +208,6 @@ docker compose up --build -d
 #After the first docker compose up --build -d, you only need to start the containers with:
 docker compose up -d
 
-# Runs database migrations inside the backend container (creates tables)
-docker compose exec backend npx prisma migrate deploy
-
 # Streams live logs from all containers (Ctrl+C to stop watching)
 docker compose logs -f
 
