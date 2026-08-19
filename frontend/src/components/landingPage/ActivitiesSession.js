@@ -1,16 +1,18 @@
 import React from "react";
-import { Box, Flex, Image, Heading, Text, VStack } from "@chakra-ui/react";
-import { motion } from "framer-motion";
+import { Box, Heading, Image, Text, VStack } from "@chakra-ui/react";
 import SliderModule from "react-slick";
 
 const Slider = SliderModule.default || SliderModule;
 
 const activities = [
-  { name: "Promote Civility", image: "/images/image.png" },
-  { name: "Free Medical Care", image: "/images/image24.png" },
-  { name: "Skills Acquisition", image: "/images/image26.png" },
-  { name: "Empowerment Programs", image: "/images/image24.png" },
-  { name: "Community Development", image: "/images/image26.png" },
+  { name: "Medical check up", image: "/images/tcac-activities/medical-chekup.jpg" },
+  { name: "Spiritual Gathering", image: "/images/tcac-activities/spiritual-gathering.jpg" },
+  { name: "Health Awareness", image: "/images/tcac-activities/health-awareness.jpg" },
+  { name: "Empowerment", image: "/images/tcac-activities/empowerment.jpg" },
+  { name: "Brothers Networking", image: "/images/tcac-activities/brothers-networking.jpg" },
+  { name: "Sister's Networking", image: "/images/tcac-activities/sisters-networking.jpg" },
+  { name: "Children Islamic class", image: "/images/tcac-activities/children-class.jpg" },
+  { name: "Trade fair", image: "/images/tcac-activities/trade-fair.jpg" },
 ];
 
 const ActivitiesSection = () => {
@@ -21,75 +23,61 @@ const ActivitiesSection = () => {
     slidesToShow: 3,
     slidesToScroll: 1,
     autoplay: true,
-    autoplaySpeed: 3000,
+    autoplaySpeed: 4000,
     pauseOnHover: true,
+    arrows: false,
     responsive: [
       {
         breakpoint: 1024,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
+        settings: { slidesToShow: 2, slidesToScroll: 1 },
       },
       {
         breakpoint: 600,
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-        },
+        settings: { slidesToShow: 1, slidesToScroll: 1 },
       },
     ],
   };
 
   return (
-    <Box as="section" py={12} px={8} id="activities" bg="#E1EDDF">
+    <Box as="section" py={{ base: 8, md: 12 }} px={{ base: 4, md: 10, lg: 14 }} bg="#f0fff0">
       {/* Section Header */}
-      <Flex
-        justifyContent="flex-start"
-        alignItems="center"
-        mb={6}
-        p={2}
-        border="2px solid black"
-        boxShadow="4px 4px 12px rgba(0, 0, 0, 0.8)"
-        bg="lime.100"
-        maxW="fit-content"
+      <Box
+        display="inline-block"
+        mb={{ base: 6, md: 10 }}
+        px={5}
+        py={3}
+        border="2px solid"
+        borderColor="gray.800"
+        borderRadius="md"
       >
-        <Heading as="h2" textAlign="center" fontSize="2xl">
+        <Heading as="h2" fontSize={{ base: "xl", md: "2xl" }} color="gray.900" fontWeight="bold">
           TCAC Activities
         </Heading>
-      </Flex>
+      </Box>
 
-      {/* Slider Component */}
-      <Slider {...settings}>
-        {activities.map((activity, index) => (
-          <Box key={index} px={2}>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.3 }}
-            >
-              <VStack
-                bg="white"
-                borderRadius="md"
-                boxShadow="lg"
-                p={4}
-                textAlign="center"
-                spacing={4}
-              >
+      {/* Slider - full width, aligned with title */}
+      <Box>
+        <Slider {...settings}>
+          {activities.map((activity, index) => (
+            <Box key={index} px={2}>
+              <VStack spacing={3} align="start">
                 <Image
                   src={activity.image}
                   alt={activity.name}
-                  borderRadius="md"
+                  borderRadius="lg"
                   objectFit="cover"
-                  fallbackSrc="https://via.placeholder.com/300x200?text=Activity"
+                  w="full"
+                  h={{ base: "220px", md: "250px" }}
+                  fallbackSrc="https://via.placeholder.com/400x250?text=Activity"
                 />
-                <Text fontWeight="bold" fontSize="lg" color="gray.700">
+                <Text fontWeight="bold" fontSize={{ base: "md", md: "lg" }} color="gray.800">
                   {activity.name}
                 </Text>
               </VStack>
-            </motion.div>
-          </Box>
-        ))}
-      </Slider>
+            </Box>
+          ))}
+        </Slider>
+      </Box>
     </Box>
   );
 };

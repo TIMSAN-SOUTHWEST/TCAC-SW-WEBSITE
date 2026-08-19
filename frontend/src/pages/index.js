@@ -1,94 +1,64 @@
 import Head from "next/head";
 import React, { useState } from "react";
-import { Box, VStack } from "@chakra-ui/react";
-// Components
+import { Box, Image, Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton } from "@chakra-ui/react";
 import Header from "../components/landingPage/Header";
 import HeroSection from "../components/landingPage/HeaderAndParagraph";
-import PrevTCACRecap from "../components/landingPage/PreviousTCACRecap";
 import ActivitiesSection from "../components/landingPage/ActivitiesSession";
-import TCACUpdates from "../components/landingPage/TCACUpdates";
+import PrevTCACRecap from "../components/landingPage/PreviousTCACRecap";
+import TCACFaqs from "../components/landingPage/TCACFaqs";
 import Footer from "../components/landingPage/Footer";
-import NewsModal from "@/components/landingPage/NewsModal";
-import BankDetailsModal from "../components/landingPage/BankDetailsModal";
 
-// 1. Receive the props from the server here
-export default function Home({ updates, news }) {
-  const [isNewsOpen, setIsNewsOpen] = useState(false);
-  const [isBankDetailsOpen, setIsBankDetailsOpen] = useState(false);
+export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(true);
 
   return (
     <>
       <Head>
         <title>TCAC &apos;26</title>
+        <meta name="description" content="TIMSAN Camp and Conference 2026 - Leadership, Creativity, Innovation, Brotherhood" />
       </Head>
+
+      {/* Welcome Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} isCentered size="xl">
+        <ModalOverlay bg="blackAlpha.700" />
+        <ModalContent bg="transparent" boxShadow="none" maxW={{ base: "90%", md: "500px" }}>
+          <ModalCloseButton
+            color="white"
+            bg="red.500"
+            borderRadius="full"
+            size="lg"
+            top={-3}
+            right={-3}
+            _hover={{ bg: "red.600" }}
+            zIndex={10}
+          />
+          <ModalBody p={0}>
+            <Image
+              src="/tcac-2026-modal.jpeg"
+              alt="TCAC 2026"
+              borderRadius="lg"
+              w="full"
+              objectFit="contain"
+            />
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
       <Box>
         <Header />
         <HeroSection />
-        <PrevTCACRecap />
         <ActivitiesSection />
-
-        {/* 2. Pass the server-side updates to the Slider component */}
-        <TCACUpdates updates={updates} />
-
-        <NewsModal
-          isOpen={isNewsOpen}
-          onClose={() => setIsNewsOpen(false)}
-          newsArray={news} // Using server-side news
-        />
-
-        <BankDetailsModal 
-          isOpen={isBankDetailsOpen} 
-          onClose={() => setIsBankDetailsOpen(false)} 
-        />
-
-        <VStack spacing={0} align="stretch">
-          {/* Dynamic content rendering loop goes here */}
-        </VStack>
+        <PrevTCACRecap />
+        <TCACFaqs />
         <Footer />
       </Box>
     </>
   );
 }
 
-// Static data for landing page
 export async function getStaticProps() {
-  const updates = [
-    {
-      imgSrc: "/images/image5.png",
-      title: "TILETS",
-      description: "TIMSAN Southwest TILETS is... ",
-    },
-    {
-      imgSrc: "/images/image5.png",
-      title: "Reading Club",
-      description: "TIMSAN Southwest reading club is...",
-    },
-    {
-      imgSrc: "/images/image5.png",
-      title: "Congress",
-      description: "TIMSAN Southwest congress is...",
-    },
-    {
-      imgSrc: "/images/image26.png",
-      title: "TCAC'26",
-      description: "TCAC'26 is the premier event of TIMSAN Southwest...",
-    },
-  ];
-
-  const news = [
-    {
-      id: 1,
-      title: "TCAC '26 Registration Open",
-      date: "May 02, 2026",
-      description: "Registration for TIMSAN Southwest TCAC 2026 is officially open.",
-    },
-  ];
-
   return {
-    props: {
-      updates,
-      news,
-    },
+    props: {},
     revalidate: 3600,
   };
 }
