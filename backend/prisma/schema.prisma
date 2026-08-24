@@ -36,6 +36,11 @@ enum PricingType {
   earlyBird @map("early-bird")
 }
 
+enum PaymentMode {
+  full
+  installment
+}
+
 enum PaymentStatus {
   pending
   approved
@@ -103,6 +108,9 @@ model User {
   amount                Float?
   receiptUrl            String?
   paymentNarration      String?
+  paymentMode           PaymentMode           @default(full)
+  installmentPlan       String?
+  installmentStep       Int                   @default(0)
   balance               Float                 @default(35000)
   paymentAccessGranted  Boolean               @default(false)
   paymentRequestMessage String?

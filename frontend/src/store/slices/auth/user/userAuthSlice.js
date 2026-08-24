@@ -49,6 +49,20 @@ export const loginUser = createAsyncThunk(
   async (formValues, thunkAPI) => {
     try {
       const response = await api.post('/auth/user/login', formValues);
+      
+      // If user is blocked due to installment, don't store session
+      if (response.data.installmentBlocked) {
+        return {
+          user: response.data.user,
+          token: response.data.token,
+          installmentBlocked: true,
+          installmentMessage: response.data.installmentMessage,
+          installmentStep: response.data.installmentStep,
+          installmentPlan: response.data.installmentPlan,
+          balance: response.data.balance,
+        };
+      }
+      
       sessionStorage.setItem('userData', JSON.stringify({
         user: response.data.user,
         token: response.data.token

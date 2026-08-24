@@ -18,6 +18,7 @@ const AdminPaymentApprovalTable = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [allPayments, setAllPayments] = useState([]); // Store all payments for counts
+  const [installmentFilter, setInstallmentFilter] = useState(false); // Filter installment-only
   const toast = useToast();
 
   const fetchPayments = useCallback(async () => {
@@ -60,7 +61,7 @@ const AdminPaymentApprovalTable = () => {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, searchQuery, installmentFilter]);
 
   const handleCommentChange = (id, value) => setAdminComments(prev => ({ ...prev, [id]: value }));
   const handleStatusChange = (id, value) => setStatusUpdates(prev => ({ ...prev, [id]: value }));
@@ -93,9 +94,14 @@ const AdminPaymentApprovalTable = () => {
     return truncateName(`${firstName} ${lastName}`.trim());
   };
 
-  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
-  const paginatedPayments = payments.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-  const totalAmount = payments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  // Apply installment filter on top of fetched payments
+  const filteredPayments = installmentFilter
+    ? payments.filter(p => p.userId?.paymentMode === "installment")
+    : payments;
+
+  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
+  const paginatedPayments = filteredPayments.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const totalAmount = filteredPayments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // Get counts for each status from all payments
   const statusCounts = {
@@ -104,6 +110,8 @@ const AdminPaymentApprovalTable = () => {
     approved: allPayments.filter(p => p.status === "approved").length,
     rejected: allPayments.filter(p => p.status === "rejected").length,
   };
+
+  const installmentCount = allPayments.filter(p => p.userId?.paymentMode === "installment").length;
 
   return (
     <Box bg="white" borderRadius="md" boxShadow="md" p={6} mb={8} maxW="1100px" mx="auto" border="1px solid #e2e8f0">
@@ -148,6 +156,14 @@ const AdminPaymentApprovalTable = () => {
               >
                 Rejected ({statusCounts.rejected})
               </Button>
+              <Button
+                size="sm"
+                variant={installmentFilter ? "solid" : "outline"}
+                colorScheme="purple"
+                onClick={() => setInstallmentFilter(!installmentFilter)}
+              >
+                Installment ({installmentCount})
+              </Button>
             </HStack>
           </Box>
 
@@ -166,10 +182,11 @@ const AdminPaymentApprovalTable = () => {
         {/* Results Summary */}
         <Box>
           <Text fontSize="sm" color="gray.600">
-            Showing {payments.length} payments
+            Showing {filteredPayments.length} payments
             {searchQuery && ` matching "${searchQuery}"`}
             {statusFilter !== "all" && ` with status "${statusFilter}"`}
-            {statusFilter === "all" && searchQuery === "" && ` (${allPayments.length} total)`}
+            {installmentFilter && ` (installment only)`}
+            {statusFilter === "all" && searchQuery === "" && !installmentFilter && ` (${allPayments.length} total)`}
           </Text>
         </Box>
       </VStack>
@@ -185,6 +202,7 @@ const AdminPaymentApprovalTable = () => {
                 <Th>Transaction Date</Th>
                 <Th>User Name</Th>
                 <Th>Amount</Th>
+                <Th>Type</Th>
                 <Th>Camp Type</Th>
                 <Th>Receipt</Th>
                 <Th>Status</Th>
@@ -194,7 +212,7 @@ const AdminPaymentApprovalTable = () => {
             </Thead>
             <Tbody>
               {paginatedPayments.length === 0 ? (
-                <Tr><Td colSpan={9}><Text textAlign="center" color="gray.500">No payments found.</Text></Td></Tr>
+                <Tr><Td colSpan={10}><Text textAlign="center" color="gray.500">No payments found.</Text></Td></Tr>
               ) : (
                 paginatedPayments.map(item => (
                   <Tr key={item._id}>
@@ -202,6 +220,16 @@ const AdminPaymentApprovalTable = () => {
                     <Td>{item.transactionDate ? new Date(item.transactionDate).toLocaleString() : "-"}</Td>
                     <Td>{item.userId && (item.userId.firstName || item.userId.lastName) ? getFullName(item.userId) : "-"}</Td>
                     <Td>₦{item.amount ? Number(item.amount).toLocaleString() : "-"}</Td>
+                    <Td>
+                      <VStack spacing={1} align="start">
+                        <Text fontSize="xs">{item.paymentType || "-"}</Text>
+                        {item.userId?.paymentMode === "installment" && (
+                          <Badge colorScheme="purple" fontSize="2xs">
+                            Installment {item.userId.installmentStep}/3
+                          </Badge>
+                        )}
+                      </VStack>
+                    </Td>
                     <Td>{item.campType || "-"}</Td>
                     <Td>{item.receiptUrl ? (<Link href={item.receiptUrl} target="_blank" rel="noopener noreferrer" color="blue.500" textDecoration="underline">View</Link>) : "-"}</Td>
                     <Td><Badge colorScheme={statusColor[item.status] || "gray"}>{item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "-"}</Badge></Td>

@@ -14,6 +14,7 @@ import {
   Textarea,
   useToast,
   Select,
+  Badge,
 } from "@chakra-ui/react";
 import { FaCopy } from "react-icons/fa";
 import { MdAttachFile } from "react-icons/md";
@@ -31,6 +32,50 @@ const PRICES = {
     "Conference Only": { Student: 30000, Alumnus: 30000 },
     "Camp + Conference": { Student: 36000, Alumnus: 44000 },
   },
+};
+
+// Installment plan definitions
+const INSTALLMENT_PLANS = {
+  camp_conference_42k: {
+    label: "Camp + Conference (₦20,000 + ₦15,000 + ₦7,000)",
+    campType: "Camp + Conference",
+    amounts: [20000, 15000, 7000],
+    total: 42000,
+  },
+  conference_early_30k: {
+    label: "Conference Only (₦10,000 + ₦10,000 + ₦10,000)",
+    campType: "Conference Only",
+    amounts: [10000, 10000, 10000],
+    total: 30000,
+  },
+  conference_standard_35k: {
+    label: "Conference Only (₦10,000 + ₦10,000 + ₦15,000)",
+    campType: "Conference Only",
+    amounts: [10000, 10000, 15000],
+    total: 35000,
+  },
+};
+
+// Determine pricing tier based on date: early-bird until Aug 31, 2026
+const getCurrentPricingTier = () => {
+  const now = new Date();
+  const earlyBirdDeadline = new Date("2026-08-31T23:59:59");
+  return now <= earlyBirdDeadline ? "early-bird" : "standard";
+};
+
+// Get installment plans available based on current date
+const getAvailableInstallmentPlans = () => {
+  const tier = getCurrentPricingTier();
+  if (tier === "early-bird") {
+    return {
+      camp_conference_42k: INSTALLMENT_PLANS.camp_conference_42k,
+      conference_early_30k: INSTALLMENT_PLANS.conference_early_30k,
+    };
+  }
+  return {
+    camp_conference_42k: INSTALLMENT_PLANS.camp_conference_42k,
+    conference_standard_35k: INSTALLMENT_PLANS.conference_standard_35k,
+  };
 };
 
 const getPrice = (userCategory, campType, pricingType) => {
@@ -60,6 +105,7 @@ const PaymentForm = ({
     amount: "7000",
     receipt: "",
     paymentNarration: "",
+    installmentPlan: "",
   });
   const [minimumAmountRequired, setMinimumAmountRequired] = useState(7000);
   const [formErrors, setFormErrors] = useState({});
@@ -75,27 +121,32 @@ const PaymentForm = ({
     bank: "UBA",
   };
 
+  const isInstallment = formValues.paymentType === "Installment";
+
   // Calculate amount based on camp type, user category, and payment mode
-  const calculateAmount = (campType, userCategory, paymentType) => {
-    if (paymentType === "Installmental") {
-      return ""; // User will select from dropdown
+  const calculateAmount = (campType, userCategory, paymentType, installmentPlan) => {
+    if (paymentType === "Installment") {
+      // Return first installment amount for the selected plan
+      const plan = INSTALLMENT_PLANS[installmentPlan];
+      return plan ? String(plan.amounts[0]) : "";
     }
-    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+    const pricingType = getCurrentPricingTier();
     return String(getPrice(userCategory, campType, pricingType));
   };
 
   // Calculate minimum amount based on camp type, user category, and payment mode
-  const calculateMinimumAmount = (campType, userCategory, paymentType) => {
-    if (paymentType === "Installmental") {
-      return 5000; // Minimum installmental
+  const calculateMinimumAmount = (campType, userCategory, paymentType, installmentPlan) => {
+    if (paymentType === "Installment") {
+      const plan = INSTALLMENT_PLANS[installmentPlan];
+      return plan ? plan.amounts[0] : 0;
     }
-    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+    const pricingType = getCurrentPricingTier();
     return getPrice(userCategory, campType, pricingType);
   };
 
   // Get available camp types based on user category and payment mode
-  const getAvailableCampTypes = (userCategory, paymentType) => {
-    const pricingType = paymentType === "Early Bird" ? "early-bird" : "standard";
+  const getAvailableCampTypes = (userCategory) => {
+    const pricingType = getCurrentPricingTier();
 
     if (userCategory === "Child") {
       return [
@@ -123,20 +174,39 @@ const PaymentForm = ({
   };
 
   useEffect(() => {
-    const newAmount = calculateAmount(formValues.campType, prevFormValues?.userCategory, formValues.paymentType);
-    const newMinimum = calculateMinimumAmount(formValues.campType, prevFormValues?.userCategory, formValues.paymentType);
-    
-    setFormValues(prev => ({
-      ...prev,
-      amount: newAmount
-    }));
-    setMinimumAmountRequired(newMinimum);
+    if (!isInstallment) {
+      const newAmount = calculateAmount(formValues.campType, prevFormValues?.userCategory, formValues.paymentType, formValues.installmentPlan);
+      const newMinimum = calculateMinimumAmount(formValues.campType, prevFormValues?.userCategory, formValues.paymentType, formValues.installmentPlan);
+      
+      setFormValues(prev => ({
+        ...prev,
+        amount: newAmount
+      }));
+      setMinimumAmountRequired(newMinimum);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formValues.campType, formValues.paymentType, prevFormValues?.userCategory]);
+
+  // Handle installment plan change
+  useEffect(() => {
+    if (isInstallment && formValues.installmentPlan) {
+      const plan = INSTALLMENT_PLANS[formValues.installmentPlan];
+      if (plan) {
+        setFormValues(prev => ({
+          ...prev,
+          campType: plan.campType,
+          amount: "",
+        }));
+        setMinimumAmountRequired(0);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues.installmentPlan]);
 
   const handleCampTypeChange = (e) => {
     const newCampType = e.target.value;
-    const newAmount = calculateAmount(newCampType, prevFormValues?.userCategory, formValues.paymentType);
-    const newMinimum = calculateMinimumAmount(newCampType, prevFormValues?.userCategory, formValues.paymentType);
+    const newAmount = calculateAmount(newCampType, prevFormValues?.userCategory, formValues.paymentType, formValues.installmentPlan);
+    const newMinimum = calculateMinimumAmount(newCampType, prevFormValues?.userCategory, formValues.paymentType, formValues.installmentPlan);
     
     setFormValues(prev => ({
       ...prev,
@@ -148,15 +218,39 @@ const PaymentForm = ({
 
   const handlePaymentTypeChange = (e) => {
     const newPaymentType = e.target.value;
-    const newAmount = calculateAmount(formValues.campType, prevFormValues?.userCategory, newPaymentType);
-    const newMinimum = calculateMinimumAmount(formValues.campType, prevFormValues?.userCategory, newPaymentType);
     
+    if (newPaymentType === "Installment") {
+      // Reset to first installment plan option
+      setFormValues(prev => ({
+        ...prev,
+        paymentType: newPaymentType,
+        installmentPlan: "",
+        campType: "",
+        amount: "",
+      }));
+      setMinimumAmountRequired(0);
+    } else {
+      const defaultCampType = "Camp Only";
+      const newAmount = calculateAmount(defaultCampType, prevFormValues?.userCategory, newPaymentType, "");
+      const newMinimum = calculateMinimumAmount(defaultCampType, prevFormValues?.userCategory, newPaymentType, "");
+      
+      setFormValues(prev => ({
+        ...prev,
+        paymentType: newPaymentType,
+        installmentPlan: "",
+        campType: defaultCampType,
+        amount: newAmount,
+      }));
+      setMinimumAmountRequired(newMinimum);
+    }
+  };
+
+  const handleInstallmentPlanChange = (e) => {
+    const planKey = e.target.value;
     setFormValues(prev => ({
       ...prev,
-      paymentType: newPaymentType,
-      amount: newAmount
+      installmentPlan: planKey,
     }));
-    setMinimumAmountRequired(newMinimum);
   };
 
   const handleAmountChange = (e) => {
@@ -179,13 +273,22 @@ const PaymentForm = ({
     const validationErrors = {};
     if (!formValues.paymentType)
       validationErrors.paymentType = "Payment type is required";
-    if (!formValues.campType)
-      validationErrors.campType = "Camp type is required";
-    if (
-      !formValues.amount ||
-      parseInt(formValues.amount) < minimumAmountRequired
-    )
-      validationErrors.amount = `Minimum amount is ₦${minimumAmountRequired}`;
+    
+    if (isInstallment) {
+      if (!formValues.installmentPlan)
+        validationErrors.campType = "Please select an installment plan";
+      if (!formValues.amount)
+        validationErrors.amount = "Please select an amount to pay";
+    } else {
+      if (!formValues.campType)
+        validationErrors.campType = "Camp type is required";
+      if (
+        !formValues.amount ||
+        parseInt(formValues.amount) < minimumAmountRequired
+      )
+        validationErrors.amount = `Minimum amount is ₦${formatNaira(minimumAmountRequired)}`;
+    }
+    
     if (!formValues.receipt)
       validationErrors.receipt = "Receipt upload is required";
 
@@ -219,9 +322,14 @@ const PaymentForm = ({
         role,
         ...values,
         ...prevFormValues,
-        ...formValues,
+        paymentType: formValues.paymentType,
+        campType: formValues.campType,
+        amount: parseInt(formValues.amount),
+        paymentNarration: formValues.paymentNarration,
         receiptUrl: url,
-        pricingType: formValues.paymentType === "Early Bird" ? "early-bird" : "standard",
+        pricingType: getCurrentPricingTier(),
+        paymentMode: isInstallment ? "installment" : "full",
+        installmentPlan: isInstallment ? formValues.installmentPlan : undefined,
       };
 
       onValuesChange(mergedValues);
@@ -250,7 +358,7 @@ const PaymentForm = ({
     inputFileRef.current.click();
   };
 
-  const availableCampTypes = getAvailableCampTypes(prevFormValues?.userCategory, formValues.paymentType);
+  const availableCampTypes = getAvailableCampTypes(prevFormValues?.userCategory);
 
   return (
     <form onSubmit={handleFormSubmit}>
@@ -331,18 +439,20 @@ const PaymentForm = ({
         </Flex>
 
         <FormControl id="paymentType" isInvalid={!!formErrors.paymentType}>
-          <FormLabel>Mode of Payment</FormLabel>
+          <FormLabel display="flex" alignItems="center" gap={2}>
+            Mode of Payment
+            {getCurrentPricingTier() === "early-bird" && (
+              <Badge colorScheme="green" fontSize="xs">Early Bird Active</Badge>
+            )}
+          </FormLabel>
           <Select
             value={formValues.paymentType}
             onChange={handlePaymentTypeChange}
             placeholder="Select payment type"
           >
             <option value="Full Payment">Full Payment</option>
-            {prevFormValues?.userCategory !== "Non-TIMSANITE" && (
-              <option value="Early Bird">Early Bird</option>
-            )}
-            {(formValues.campType === "Conference Only" || formValues.campType === "Camp + Conference") && (
-              <option value="Installmental">Installmental</option>
+            {prevFormValues?.userCategory !== "Child" && (
+              <option value="Installment">Installment</option>
             )}
           </Select>
           {formErrors.paymentType && (
@@ -352,45 +462,69 @@ const PaymentForm = ({
           )}
         </FormControl>
 
-        <FormControl id="campType" isInvalid={!!formErrors.campType}>
-          <FormLabel>What part of the Camp/Conference?</FormLabel>
-          <Select
-            value={formValues.campType}
-            onChange={handleCampTypeChange}
-            placeholder="Select camp type"
-          >
-            {availableCampTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </Select>
-          {formErrors.campType && (
-            <Text color="red.500" fontSize="sm">
-              {formErrors.campType}
-            </Text>
-          )}
-        </FormControl>
+        {/* Show installment plan selector when Installment is chosen */}
+        {isInstallment ? (
+          <FormControl id="installmentPlan" isInvalid={!!formErrors.campType}>
+            <FormLabel>What part of the Camp/Conference?</FormLabel>
+            <Select
+              value={formValues.installmentPlan}
+              onChange={handleInstallmentPlanChange}
+              placeholder="Select installment plan"
+            >
+              {Object.entries(getAvailableInstallmentPlans()).map(([key, plan]) => (
+                <option key={key} value={key}>
+                  {plan.label}
+                </option>
+              ))}
+            </Select>
+            {formErrors.campType && (
+              <Text color="red.500" fontSize="sm">
+                {formErrors.campType}
+              </Text>
+            )}
+          </FormControl>
+        ) : (
+          <FormControl id="campType" isInvalid={!!formErrors.campType}>
+            <FormLabel>What part of the Camp/Conference?</FormLabel>
+            <Select
+              value={formValues.campType}
+              onChange={handleCampTypeChange}
+              placeholder="Select camp type"
+            >
+              {availableCampTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </Select>
+            {formErrors.campType && (
+              <Text color="red.500" fontSize="sm">
+                {formErrors.campType}
+              </Text>
+            )}
+          </FormControl>
+        )}
 
         <FormControl id="amount" isInvalid={!!formErrors.amount}>
-          <FormLabel>Amount</FormLabel>
-          {formValues.paymentType === "Installmental" && (formValues.campType === "Conference Only" || formValues.campType === "Camp + Conference") ? (
+          <FormLabel>Amount {isInstallment && "(Select Installment)"}</FormLabel>
+          {isInstallment && formValues.installmentPlan ? (
             <Select
               value={formValues.amount}
               onChange={handleAmountChange}
-              placeholder="Select amount"
+              placeholder="Select amount to pay"
             >
-              <option value="5000">₦5,000</option>
-              <option value="10000">₦10,000</option>
-              <option value="20000">₦20,000</option>
+              {INSTALLMENT_PLANS[formValues.installmentPlan]?.amounts.map((amt, idx) => (
+                <option key={idx} value={String(amt)}>
+                  ₦{formatNaira(amt)} — Payment {idx + 1}
+                </option>
+              ))}
             </Select>
           ) : (
             <Input 
-              value={formValues.amount} 
-              onChange={handleAmountChange}
-              placeholder="Enter amount"
+              value={formValues.amount ? `₦${formatNaira(parseInt(formValues.amount) || 0)}` : ""} 
               readOnly={true}
               bg="gray.100"
+              placeholder={isInstallment ? "Select a plan above" : "Amount"}
             />
           )}
           {formErrors.amount && (

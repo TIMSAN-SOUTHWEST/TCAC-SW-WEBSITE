@@ -12,7 +12,7 @@ import {
   VerifyResetCodeDto,
   ResetPasswordDto,
 } from './dto/auth.dto';
-import { UserCategory, CampType, PricingType } from '@prisma/client';
+import { UserCategory, CampType, PricingType, PaymentMode } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -50,6 +50,20 @@ export class AuthService {
     });
 
     const { password: _, ...userWithoutPassword } = user;
+
+    // Check if user is on installment plan and hasn't completed all payments
+    if (user.paymentMode === 'installment' && user.installmentStep < 3) {
+      return {
+        token,
+        user: userWithoutPassword,
+        installmentBlocked: true,
+        installmentMessage: 'You are on an installment payment plan. You can only access your dashboard after completing all 3 installment payments. Please contact the admin to make your next payment.',
+        installmentStep: user.installmentStep,
+        installmentPlan: user.installmentPlan,
+        balance: user.balance,
+      };
+    }
+
     return { token, user: userWithoutPassword };
   }
 
@@ -78,13 +92,29 @@ export class AuthService {
     // Map string enums to Prisma enums
     const userCategory = this.mapUserCategory(dto.userCategory);
     const campType = this.mapCampType(dto.campType);
-    const pricingType = this.mapPricingType(dto.pricingType);
+
+    // Determine pricing tier by date: early-bird until Aug 31, 2026
+    const now = new Date();
+    const earlyBirdDeadline = new Date('2026-08-31T23:59:59');
+    const autoTier = now <= earlyBirdDeadline ? 'early-bird' : 'standard';
+    const pricingType = this.mapPricingType(autoTier);
+
+    // Determine payment mode
+    const isInstallment = dto.paymentMode === 'installment';
+    const paymentMode = isInstallment ? PaymentMode.installment : PaymentMode.full;
 
     // Calculate balance
     const amountPaid = dto.amount ? parseInt(String(dto.amount)) : 0;
     const isNonTimsanite = dto.userCategory.toLowerCase() === 'non-timsanite';
-    const tier = !isNonTimsanite && dto.pricingType === 'early-bird' ? 'early-bird' : 'standard';
-    const campPrice = this.getCampPrice(dto.userCategory, dto.campType, tier);
+    const tier = isNonTimsanite ? 'standard' : autoTier;
+
+    let campPrice: number;
+    if (isInstallment) {
+      // For installment, get the total price from the installment plan
+      campPrice = this.getInstallmentTotalPrice(dto.installmentPlan || '', dto.campType);
+    } else {
+      campPrice = this.getCampPrice(dto.userCategory, dto.campType, tier);
+    }
     const balance = Math.max(0, campPrice - amountPaid);
 
     const newUser = await this.prisma.user.create({
@@ -119,6 +149,9 @@ export class AuthService {
         amount: dto.amount,
         receiptUrl: dto.receiptUrl,
         paymentNarration: dto.paymentNarration,
+        paymentMode,
+        installmentPlan: isInstallment ? dto.installmentPlan : null,
+        installmentStep: isInstallment ? 1 : 0,
         balance,
       },
     });
@@ -134,9 +167,11 @@ export class AuthService {
           amount: amountPaid,
           transactionDate: new Date(),
           receiptUrl: dto.receiptUrl || '',
-          paymentNarration: dto.paymentNarration || 'Registration payment',
+          paymentNarration: isInstallment
+            ? `Installment payment 1 of 3`
+            : (dto.paymentNarration || 'Registration payment'),
           status: 'approved',
-          adminComment: 'Registration payment',
+          adminComment: isInstallment ? 'Installment payment 1 of 3' : 'Registration payment',
         },
       });
     }
@@ -500,5 +535,45 @@ export class AuthService {
     }
 
     return studentPrice[campType] ?? 0;
+  }
+
+  /**
+   * Get the total price for an installment plan.
+   * Installment plans:
+   * - Camp + Conference: 20k + 15k + 7k = 42k
+   * - Conference Only (Early bird): 10k + 10k + 10k = 30k
+   * - Conference Only (Late/Standard): 10k + 10k + 15k = 35k
+   */
+  private getInstallmentTotalPrice(installmentPlan: string, campType: string): number {
+    switch (installmentPlan) {
+      case 'camp_conference_42k':
+        return 42000;
+      case 'conference_early_30k':
+        return 30000;
+      case 'conference_standard_35k':
+        return 35000;
+      default:
+        // Fallback: use standard pricing for the camp type
+        if (campType === 'Camp + Conference') return 42000;
+        if (campType === 'Conference Only') return 35000;
+        return 0;
+    }
+  }
+
+  /**
+   * Get the installment amounts for a given plan.
+   * Returns an array of 3 amounts representing each installment payment.
+   */
+  private getInstallmentAmounts(installmentPlan: string): number[] {
+    switch (installmentPlan) {
+      case 'camp_conference_42k':
+        return [20000, 15000, 7000];
+      case 'conference_early_30k':
+        return [10000, 10000, 10000];
+      case 'conference_standard_35k':
+        return [10000, 10000, 15000];
+      default:
+        return [0, 0, 0];
+    }
   }
 }

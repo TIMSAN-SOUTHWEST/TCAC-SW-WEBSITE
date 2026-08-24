@@ -5,6 +5,87 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class PaymentsService {
   constructor(private prisma: PrismaService) {}
 
+  // ==============================
+  // INSTALLMENT PAYMENT METHODS
+  // ==============================
+
+  async submitInstallmentPayment(userId: string, data: {
+    amount: number;
+    receiptUrl: string;
+    paymentNarration?: string;
+  }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.paymentMode !== 'installment') {
+      throw new BadRequestException('This user is not on an installment payment plan');
+    }
+
+    if (user.installmentStep >= 3) {
+      throw new BadRequestException('All installment payments have already been completed');
+    }
+
+    const numericAmount = Number(data.amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      throw new BadRequestException('Amount must be a positive number');
+    }
+
+    if (!data.receiptUrl) {
+      throw new BadRequestException('Receipt URL is required');
+    }
+
+    // Create payment record with pending status (admin will approve)
+    const payment = await this.prisma.payment.create({
+      data: {
+        userId: user.id,
+        paymentType: 'Installment',
+        pricingType: user.pricingType,
+        campType: user.campType === 'CampConference' ? 'Camp + Conference' :
+                  user.campType === 'ConferenceOnly' ? 'Conference Only' :
+                  user.campType === 'CampOnly' ? 'Camp Only' : String(user.campType),
+        amount: numericAmount,
+        transactionDate: new Date(),
+        receiptUrl: data.receiptUrl,
+        paymentNarration: data.paymentNarration || `Installment payment ${user.installmentStep + 1} of 3`,
+        status: 'pending',
+        adminComment: '',
+      },
+    });
+
+    return {
+      success: true,
+      message: `Installment payment submitted successfully. Awaiting admin approval.`,
+      payment,
+    };
+  }
+
+  async getInstallmentHistory(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const payments = await this.prisma.payment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      payments,
+      installmentStep: user.installmentStep,
+      installmentPlan: user.installmentPlan,
+      balance: user.balance,
+      paymentMode: user.paymentMode,
+      totalPayments: 3,
+    };
+  }
+
+  // ==============================
+  // EXISTING METHODS
+  // ==============================
+
   async createPayment(data: {
     userId: string;
     paymentType: string;
@@ -73,7 +154,15 @@ export class PaymentsService {
       where,
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            paymentMode: true,
+            installmentStep: true,
+            installmentPlan: true,
+            balance: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -94,13 +183,22 @@ export class PaymentsService {
       },
     });
 
-    // If approved, decrease user balance
+    // If approved, decrease user balance and handle installment step
     if (status === 'approved' && userId && amount) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      
+      const updateData: any = {
+        balance: { decrement: Number(amount) },
+      };
+
+      // If user is on installment plan, increment their installment step
+      if (user && user.paymentMode === 'installment' && user.installmentStep < 3) {
+        updateData.installmentStep = { increment: 1 };
+      }
+
       await this.prisma.user.update({
         where: { id: userId },
-        data: {
-          balance: { decrement: Number(amount) },
-        },
+        data: updateData,
       });
     }
 

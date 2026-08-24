@@ -153,6 +153,16 @@ export class UserRegisterDto {
   @IsOptional()
   @IsString()
   paymentNarration?: string;
+
+  @ApiPropertyOptional({ enum: ['full', 'installment'] })
+  @IsOptional()
+  @IsString()
+  paymentMode?: string;
+
+  @ApiPropertyOptional({ description: 'Installment plan identifier (e.g. camp_conference_42k, conference_early_30k, conference_standard_35k)' })
+  @IsOptional()
+  @IsString()
+  installmentPlan?: string;
 }
 
 export class AdminRegisterDto {

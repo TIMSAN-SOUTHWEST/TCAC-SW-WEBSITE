@@ -10,6 +10,28 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  // ==============================
+  // INSTALLMENT PAYMENT ENDPOINTS
+  // ==============================
+
+  @Post('installment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async submitInstallmentPayment(@Body() body: any, @Request() req) {
+    return this.paymentsService.submitInstallmentPayment(req.user.id, body);
+  }
+
+  @Get('installment/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getInstallmentHistory(@Request() req) {
+    return this.paymentsService.getInstallmentHistory(req.user.id);
+  }
+
+  // ==============================
+  // EXISTING ENDPOINTS
+  // ==============================
+
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

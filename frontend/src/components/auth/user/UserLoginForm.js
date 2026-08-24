@@ -29,6 +29,7 @@ import {
 } from "@chakra-ui/react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import PaymentRequestModal from "../../dashboard/user/PaymentRequestModal";
+import InstallmentPaymentModal from "./InstallmentPaymentModal";
 import api from "@/utils/api";
 
 const UserLoginForm = () => {
@@ -49,6 +50,10 @@ const UserLoginForm = () => {
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [showPaymentBlockedModal, setShowPaymentBlockedModal] = useState(false);
   const [blockedUser, setBlockedUser] = useState(null);
+  
+  // Installment blocked states
+  const [showInstallmentBlockedModal, setShowInstallmentBlockedModal] = useState(false);
+  const [installmentData, setInstallmentData] = useState(null);
 
   useEffect(() => {
     fetchPaymentSettings();
@@ -132,7 +137,21 @@ const UserLoginForm = () => {
 
       if (loginUser.fulfilled.match(resultAction)) {
         // Successful login
-        const { token, user } = resultAction.payload;
+        const { token, user, installmentBlocked, installmentMessage, installmentStep, installmentPlan, balance } = resultAction.payload;
+
+        // Check if user is blocked due to incomplete installment payments
+        if (installmentBlocked) {
+          setInstallmentData({
+            user,
+            token,
+            installmentMessage,
+            installmentStep,
+            installmentPlan,
+            balance,
+          });
+          setShowInstallmentBlockedModal(true);
+          return;
+        }
 
         const role = user.role.toLowerCase();
 
@@ -370,6 +389,17 @@ const UserLoginForm = () => {
         }}
         balance={blockedUser?.balance}
         userId={blockedUser?._id}
+      />
+
+      {/* Installment Payment Modal */}
+      <InstallmentPaymentModal
+        isOpen={showInstallmentBlockedModal}
+        onClose={() => {
+          setShowInstallmentBlockedModal(false);
+          setInstallmentData(null);
+        }}
+        token={installmentData?.token}
+        installmentData={installmentData}
       />
     </>
   );
